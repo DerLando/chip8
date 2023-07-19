@@ -1,5 +1,8 @@
+use std::borrow::Borrow;
+
 /// All known OpCodes of the Chip8,
 /// as well as one variant for invalid opcodes
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) enum OpCode {
     ClearScreen(u16),
     Return(u16),
@@ -36,4 +39,41 @@ pub(crate) enum OpCode {
     DumpAll(u16),
     LoadAll(u16),
     Invalid,
+}
+
+impl From<u16> for OpCode {
+    fn from(value: u16) -> Self {
+        let repr: [char; 4] = format!("{:4X}", value)
+            .chars()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Valid hex wrapper");
+        println!("{:?}", repr);
+        match repr {
+            [' ', ' ', 'E', _] => match repr[3] {
+                '0' => OpCode::ClearScreen(value),
+                'E' => OpCode::Return(value),
+                _ => OpCode::Invalid,
+            },
+            ['1', ..] => OpCode::Jump(value),
+            _ => OpCode::Invalid,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn cls_should_parse() {
+        let opcode: u16 = 0x00E0;
+        assert_eq!(OpCode::ClearScreen(opcode), opcode.into());
+    }
+    #[test]
+    fn ret_should_parse() {
+        let opcode: u16 = 0x00EE;
+        assert_eq!(OpCode::Return(opcode), opcode.into());
+    }
 }
