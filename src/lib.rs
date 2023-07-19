@@ -22,7 +22,11 @@ impl Emulator {
     }
 
     fn load_op(&mut self) -> u16 {
-        todo!()
+        let pc = self.cpu.pc_mut();
+        let opcode = self.memory.load(*pc);
+        *pc += 1;
+
+        opcode
     }
 
     fn decode(&self, opcode: u16) -> OpCode {

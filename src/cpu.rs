@@ -23,3 +23,9 @@ pub(crate) struct Cpu {
     ve: u8,
     vf: u8,
 }
+
+impl Cpu {
+    pub(crate) fn pc_mut(&mut self) -> &mut u16 {
+        &mut self.pc
+    }
+}
