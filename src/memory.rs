@@ -6,3 +6,7 @@ pub(crate) struct Memory {
 }
 
 impl Memory {}
+
+pub(crate) struct Stack {
+    buffer: [u16; 16],
+}
