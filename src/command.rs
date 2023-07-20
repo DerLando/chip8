@@ -69,6 +69,10 @@ impl From<OpCode> for Command {
                 register: value.nibble_1(),
                 value: value.back(),
             },
+            OpCode::LoadRegister(value) => Command::CopyRegister {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
 
             _ => unreachable!(),
         }
