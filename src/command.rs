@@ -12,7 +12,7 @@ pub(crate) enum Command {
     SkipIfRegisterEqual { register_a: u8, register_b: u8 },
     SkipIfRegisterNotEqual { register_a: u8, register_b: u8 },
     Load { register: u8, value: u8 },
-    LoadI { register: u8, value: u8 },
+    LoadI { value: u16 },
     LoadSpriteDigitIntoI { read_register: u8 },
     LoadBcd { read_register: u8 },
     Add { register: u8, value: u8 },
@@ -72,6 +72,9 @@ impl From<OpCode> for Command {
             OpCode::LoadRegister(value) => Command::CopyRegister {
                 write: value.nibble_1(),
                 read: value.nibble_2(),
+            },
+            OpCode::LoadI(value) => Command::LoadI {
+                value: value.skip_first_nibble(),
             },
 
             _ => unreachable!(),

@@ -66,6 +66,7 @@ impl Emulator {
             } => self.skip_if_registers_neq(register_a, register_b),
             Command::Load { register, value } => self.load(register, value),
             Command::CopyRegister { write, read } => self.copy_register(write, read),
+            Command::LoadI { value } => self.load_i(value),
 
             _ => unreachable!(),
         }
@@ -110,6 +111,9 @@ impl Emulator {
     }
     fn copy_register(&mut self, write: u8, read: u8) {
         *self.cpu.register_mut(write) = *self.cpu.register(read);
+    }
+    fn load_i(&mut self, value: u16) {
+        *self.cpu.i_mut() = value;
     }
 }
 
@@ -173,5 +177,9 @@ mod test {
         emulator.memory.store(ptr + 2, 0x8500);
         emulator.tick();
         assert_eq!(*emulator.cpu.register(5), 0x12);
+
+        emulator.memory.store(ptr + 4, 0xA300);
+        emulator.tick();
+        assert_eq!(*emulator.cpu.i(), 0x0300);
     }
 }

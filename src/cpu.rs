@@ -8,6 +8,7 @@ pub(crate) struct Cpu {
     /// executed instruction in memory
     pc: u16,
     registers: [u8; 16],
+    i: u16,
 }
 
 impl Cpu {
@@ -35,5 +36,11 @@ impl Cpu {
     }
     pub(crate) fn register_mut(&mut self, index: u8) -> &mut u8 {
         &mut self.registers[index as usize]
+    }
+    pub(crate) fn i(&self) -> &u16 {
+        &self.i
+    }
+    pub(crate) fn i_mut(&mut self) -> &mut u16 {
+        &mut self.i
     }
 }
