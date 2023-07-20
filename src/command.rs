@@ -76,6 +76,14 @@ impl From<OpCode> for Command {
             OpCode::LoadI(value) => Command::LoadI {
                 value: value.skip_first_nibble(),
             },
+            OpCode::Add(value) => Command::Add {
+                register: value.nibble_1(),
+                value: value.back(),
+            },
+            OpCode::AddWithCarry(value) => Command::AddRegisters {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
 
             _ => unreachable!(),
         }

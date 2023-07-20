@@ -67,6 +67,8 @@ impl Emulator {
             Command::Load { register, value } => self.load(register, value),
             Command::CopyRegister { write, read } => self.copy_register(write, read),
             Command::LoadI { value } => self.load_i(value),
+            Command::Add { register, value } => self.add(register, value),
+            Command::AddRegisters { write, read } => self.add_registers(write, read),
 
             _ => unreachable!(),
         }
@@ -114,6 +116,20 @@ impl Emulator {
     }
     fn load_i(&mut self, value: u16) {
         *self.cpu.i_mut() = value;
+    }
+    fn add(&mut self, register: u8, value: u8) {
+        *self.cpu.register_mut(register) += value;
+    }
+    fn add_registers(&mut self, write: u8, read: u8) {
+        let a = self.cpu.register(write);
+        let b = self.cpu.register(read);
+        if (*a as u16) + (*b as u16) > 255 {
+            *self.cpu.register_mut(write) = a.wrapping_add(*b);
+            self.cpu.carry_on();
+        } else {
+            *self.cpu.register_mut(write) = a + b;
+            self.cpu.carry_off();
+        }
     }
 }
 
@@ -181,5 +197,23 @@ mod test {
         emulator.memory.store(ptr + 4, 0xA300);
         emulator.tick();
         assert_eq!(*emulator.cpu.i(), 0x0300);
+    }
+
+    #[test]
+    fn can_add() {
+        let mut emulator = Emulator::new();
+        let ptr = CHIP8_START as u16;
+        emulator.memory.store(ptr, 0x7112);
+        *emulator.cpu.register_mut(1) = 0x05;
+
+        emulator.tick();
+        assert_eq!(0x05 + 0x12, *emulator.cpu.register(1));
+
+        *emulator.cpu.register_mut(2) = 0x03;
+        emulator.cpu.carry_on();
+        emulator.memory.store(ptr + 2, 0x8124);
+        emulator.tick();
+        assert_eq!(0x05 + 0x12 + 0x03, *emulator.cpu.register(1));
+        assert_eq!(0, *emulator.cpu.carry());
     }
 }

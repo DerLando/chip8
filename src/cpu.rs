@@ -43,4 +43,13 @@ impl Cpu {
     pub(crate) fn i_mut(&mut self) -> &mut u16 {
         &mut self.i
     }
+    pub(crate) fn carry(&self) -> &u8 {
+        &self.registers[15]
+    }
+    pub(crate) fn carry_on(&mut self) {
+        self.registers[15] = 1;
+    }
+    pub(crate) fn carry_off(&mut self) {
+        self.registers[15] = 0;
+    }
 }
