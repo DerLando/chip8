@@ -29,7 +29,7 @@ pub(crate) enum OpCode {
     DrawSprite(u16),
     SkipIfKeyPressed(u16),
     SkipIfKeyNotPressed(u16),
-    LoadDealay(u16),
+    LoadDelay(u16),
     WaitKeyPress(u16),
     SetDelay(u16),
     SetSound(u16),
@@ -64,6 +64,9 @@ impl From<u16> for OpCode {
             ['B', ..] => OpCode::JumpV0(value),
             ['C', ..] => OpCode::RandomAnd(value),
             ['D', ..] => OpCode::DrawSprite(value),
+            ['E', _, '9', 'E'] => OpCode::SkipIfKeyPressed(value),
+            ['E', _, 'A', '1'] => OpCode::SkipIfKeyNotPressed(value),
+            ['F', ..] => decode_f_opcodes(repr, value),
             _ => OpCode::Invalid,
         }
     }
@@ -89,6 +92,21 @@ fn decode_8_opcodes(repr: [char; 4], value: u16) -> OpCode {
         ['8', _, _, '6'] => OpCode::Shr(value),
         ['8', _, _, '7'] => OpCode::SubInverse(value),
         ['8', _, _, 'E'] => OpCode::Shl(value),
+        _ => OpCode::Invalid,
+    }
+}
+
+fn decode_f_opcodes(repr: [char; 4], value: u16) -> OpCode {
+    match repr {
+        ['F', _, '0', '7'] => OpCode::LoadDelay(value),
+        ['F', _, '0', 'A'] => OpCode::WaitKeyPress(value),
+        ['F', _, '1', '5'] => OpCode::SetDelay(value),
+        ['F', _, '1', '8'] => OpCode::SetSound(value),
+        ['F', _, '1', 'E'] => OpCode::AddI(value),
+        ['F', _, '2', '9'] => OpCode::LoadSprite(value),
+        ['F', _, '3', '3'] => OpCode::LoadBcd(value),
+        ['F', _, '5', '5'] => OpCode::DumpAll(value),
+        ['F', _, '6', '5'] => OpCode::LoadAll(value),
         _ => OpCode::Invalid,
     }
 }
@@ -146,6 +164,8 @@ mod test {
         assert_eq!(OpCode::Add(opcode), opcode.into());
         let opcode: u16 = 0x85E4;
         assert_eq!(OpCode::AddWithCarry(opcode), opcode.into());
+        let opcode: u16 = 0xF51E;
+        assert_eq!(OpCode::AddI(opcode), opcode.into());
     }
     #[test]
     fn or_should_parse() {
@@ -195,5 +215,44 @@ mod test {
     fn draw_should_parse() {
         let opcode: u16 = 0xD5E3;
         assert_eq!(OpCode::DrawSprite(opcode), opcode.into());
+    }
+    #[test]
+    fn skip_key_should_parse() {
+        let opcode: u16 = 0xE59E;
+        assert_eq!(OpCode::SkipIfKeyPressed(opcode), opcode.into());
+        let opcode: u16 = 0xE5A1;
+        assert_eq!(OpCode::SkipIfKeyNotPressed(opcode), opcode.into());
+    }
+    #[test]
+    fn delay_should_parse() {
+        let opcode: u16 = 0xF507;
+        assert_eq!(OpCode::LoadDelay(opcode), opcode.into());
+        let opcode: u16 = 0xF515;
+        assert_eq!(OpCode::SetDelay(opcode), opcode.into());
+    }
+    #[test]
+    fn wait_key_should_parse() {
+        let opcode: u16 = 0xF50A;
+        assert_eq!(OpCode::WaitKeyPress(opcode), opcode.into());
+    }
+    #[test]
+    fn sound_should_parse() {
+        let opcode: u16 = 0xF518;
+        assert_eq!(OpCode::SetSound(opcode), opcode.into());
+    }
+    #[test]
+    fn bcd_should_parse() {
+        let opcode: u16 = 0xF533;
+        assert_eq!(OpCode::LoadBcd(opcode), opcode.into());
+    }
+    #[test]
+    fn dump_all_should_parse() {
+        let opcode: u16 = 0xF555;
+        assert_eq!(OpCode::DumpAll(opcode), opcode.into());
+    }
+    #[test]
+    fn load_all_should_parse() {
+        let opcode: u16 = 0xF565;
+        assert_eq!(OpCode::LoadAll(opcode), opcode.into());
     }
 }
