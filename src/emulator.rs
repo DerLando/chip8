@@ -1,4 +1,5 @@
 use crate::{
+    command::Command,
     cpu::Cpu,
     display::DisplayBuffer,
     memory::{Memory, Stack},
@@ -25,8 +26,9 @@ impl Emulator {
 
     pub fn tick(&mut self) {
         let opcode = self.load_op();
-        let opcode = opcode.into();
-        self.execute(opcode);
+        let opcode: OpCode = opcode.into();
+        let command = opcode.into();
+        self.execute(command);
     }
 
     fn load_op(&mut self) -> u16 {
@@ -37,11 +39,11 @@ impl Emulator {
         opcode
     }
 
-    fn execute(&mut self, opcode: OpCode) {
-        match opcode {
-            OpCode::ClearScreen(_) => self.clear_screen(),
-            OpCode::Return(_) => self.return_from_subroutine(),
-            OpCode::Jump(value) => self.jump(value),
+    fn execute(&mut self, command: Command) {
+        match command {
+            Command::ClearScreen => self.clear_screen(),
+            Command::ReturnFromSubroutine => self.return_from_subroutine(),
+            Command::Jump { address } => self.jump(address),
             _ => unreachable!(),
         }
     }
@@ -56,9 +58,7 @@ impl Emulator {
         *self.cpu.pc_mut() = self.stack.pop();
     }
 
-    fn jump(&mut self, raw_value: u16) {
-        let address = raw_value << 4;
-        let address = address >> 4;
+    fn jump(&mut self, address: u16) {
         *self.cpu.pc_mut() = address;
     }
 }
