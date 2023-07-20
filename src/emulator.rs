@@ -64,6 +64,7 @@ impl Emulator {
                 register_a,
                 register_b,
             } => self.skip_if_registers_neq(register_a, register_b),
+            Command::Load { register, value } => self.load(register, value),
 
             _ => unreachable!(),
         }
@@ -103,6 +104,9 @@ impl Emulator {
             self.cpu.advance_pc();
         }
     }
+    fn load(&mut self, register: u8, value: u8) {
+        *self.cpu.register_mut(register) = value;
+    }
 }
 
 #[cfg(test)]
@@ -127,7 +131,7 @@ mod test {
         let mut emulator = Emulator::new();
         let ptr_start = CHIP8_START as u16;
         emulator.memory.store(ptr_start, 0x3012);
-        emulator.cpu.v0 = 0x12;
+        *emulator.cpu.register_mut(0) = 0x12;
 
         // Value equals value stored in register 0
         assert_eq!(ptr_start, *emulator.cpu.pc());
@@ -141,14 +145,25 @@ mod test {
 
         // Values stored in registers 0 and 1 are equal
         emulator.memory.store(ptr_start + 8, 0x5010);
-        emulator.cpu.v1 = 0x12;
+        *emulator.cpu.register_mut(1) = 0x12;
         emulator.tick();
         assert_eq!(ptr_start + 12, *emulator.cpu.pc());
 
         // Values stored in registers 0 and 1 are not equal
         emulator.memory.store(ptr_start + 12, 0x9010);
-        emulator.cpu.v1 = 0x11;
+        *emulator.cpu.register_mut(0) = 0x11;
         emulator.tick();
         assert_eq!(ptr_start + 16, *emulator.cpu.pc());
+    }
+
+    #[test]
+    fn can_load() {
+        let mut emulator = Emulator::new();
+        let ptr = CHIP8_START as u16;
+        emulator.memory.store(ptr, 0x6012);
+
+        assert_ne!(*emulator.cpu.register(0), 0x12);
+        emulator.tick();
+        assert_eq!(*emulator.cpu.register(0), 0x12);
     }
 }

@@ -65,6 +65,10 @@ impl From<OpCode> for Command {
                 register_a: value.nibble_1(),
                 register_b: value.nibble_2(),
             },
+            OpCode::Load(value) => Command::Load {
+                register: value.nibble_1(),
+                value: value.back(),
+            },
 
             _ => unreachable!(),
         }
