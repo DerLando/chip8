@@ -43,12 +43,7 @@ pub(crate) enum OpCode {
 
 impl From<u16> for OpCode {
     fn from(value: u16) -> Self {
-        let repr: [char; 4] = format!("{:4X}", value)
-            .chars()
-            .into_iter()
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect("Valid hex wrapper");
+        let repr: [char; 4] = raw_opcode_chars(value);
         println!("{:?}", repr);
         match repr {
             [' ', ' ', 'E', _] => match repr[3] {
@@ -63,8 +58,34 @@ impl From<u16> for OpCode {
             ['5', ..] => OpCode::SkipIfRegistersAreEqual(value),
             ['6', ..] => OpCode::Load(value),
             ['7', ..] => OpCode::Add(value),
+            ['8', ..] => decode_8_opcodes(repr, value),
+            ['9', ..] => OpCode::SkipIfRegistersAreNotEqual(value),
             _ => OpCode::Invalid,
         }
+    }
+}
+
+pub(crate) fn raw_opcode_chars(opcode: u16) -> [char; 4] {
+    format!("{:4X}", opcode)
+        .chars()
+        .into_iter()
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("Valid hex wrapper")
+}
+
+fn decode_8_opcodes(repr: [char; 4], value: u16) -> OpCode {
+    match repr {
+        ['8', _, _, '0'] => OpCode::LoadRegister(value),
+        ['8', _, _, '1'] => OpCode::Or(value),
+        ['8', _, _, '2'] => OpCode::And(value),
+        ['8', _, _, '3'] => OpCode::Xor(value),
+        ['8', _, _, '4'] => OpCode::AddWithCarry(value),
+        ['8', _, _, '5'] => OpCode::Sub(value),
+        ['8', _, _, '6'] => OpCode::Shr(value),
+        ['8', _, _, '7'] => OpCode::SubInverse(value),
+        ['8', _, _, 'E'] => OpCode::Shl(value),
+        _ => OpCode::Invalid,
     }
 }
 
@@ -105,17 +126,50 @@ mod test {
     fn skip_register_should_parse() {
         let opcode: u16 = 0x55E0;
         assert_eq!(OpCode::SkipIfRegistersAreEqual(opcode), opcode.into());
-        // let opcode: u16 = 0x65E0;
-        // assert_eq!(OpCode::SkipIfRegistersAreNotEqual(opcode), opcode.into());
+        let opcode: u16 = 0x95E0;
+        assert_eq!(OpCode::SkipIfRegistersAreNotEqual(opcode), opcode.into());
     }
     #[test]
     fn load_should_parse() {
         let opcode: u16 = 0x65E0;
         assert_eq!(OpCode::Load(opcode), opcode.into());
+        let opcode: u16 = 0x85E0;
+        assert_eq!(OpCode::LoadRegister(opcode), opcode.into());
     }
     #[test]
     fn add_should_parse() {
         let opcode: u16 = 0x75E0;
         assert_eq!(OpCode::Add(opcode), opcode.into());
+        let opcode: u16 = 0x85E4;
+        assert_eq!(OpCode::AddWithCarry(opcode), opcode.into());
+    }
+    #[test]
+    fn or_should_parse() {
+        let opcode: u16 = 0x85E1;
+        assert_eq!(OpCode::Or(opcode), opcode.into());
+    }
+    #[test]
+    fn and_should_parse() {
+        let opcode: u16 = 0x85E2;
+        assert_eq!(OpCode::And(opcode), opcode.into());
+    }
+    #[test]
+    fn xor_should_parse() {
+        let opcode: u16 = 0x85E3;
+        assert_eq!(OpCode::Xor(opcode), opcode.into());
+    }
+    #[test]
+    fn sub_should_parse() {
+        let opcode: u16 = 0x85E5;
+        assert_eq!(OpCode::Sub(opcode), opcode.into());
+        let opcode: u16 = 0x85E7;
+        assert_eq!(OpCode::SubInverse(opcode), opcode.into());
+    }
+    #[test]
+    fn sh_should_parse() {
+        let opcode: u16 = 0x85E6;
+        assert_eq!(OpCode::Shr(opcode), opcode.into());
+        let opcode: u16 = 0x85EE;
+        assert_eq!(OpCode::Shl(opcode), opcode.into());
     }
 }
