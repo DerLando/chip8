@@ -57,6 +57,12 @@ impl From<u16> for OpCode {
                 _ => OpCode::Invalid,
             },
             ['1', ..] => OpCode::Jump(value),
+            ['2', ..] => OpCode::Call(value),
+            ['3', ..] => OpCode::SkipIfRegisterEqualsValue(value),
+            ['4', ..] => OpCode::SkipIfRegisterNotEqualsValue(value),
+            ['5', ..] => OpCode::SkipIfRegistersAreEqual(value),
+            ['6', ..] => OpCode::Load(value),
+            ['7', ..] => OpCode::Add(value),
             _ => OpCode::Invalid,
         }
     }
@@ -71,9 +77,45 @@ mod test {
         let opcode: u16 = 0x00E0;
         assert_eq!(OpCode::ClearScreen(opcode), opcode.into());
     }
+
     #[test]
     fn ret_should_parse() {
         let opcode: u16 = 0x00EE;
         assert_eq!(OpCode::Return(opcode), opcode.into());
+    }
+    #[test]
+    fn jmp_should_parse() {
+        let opcode: u16 = 0x1200;
+        assert_eq!(OpCode::Jump(opcode), opcode.into());
+    }
+
+    #[test]
+    fn call_should_parse() {
+        let opcode: u16 = 0x25E0;
+        assert_eq!(OpCode::Call(opcode), opcode.into());
+    }
+    #[test]
+    fn skip_value_should_parse() {
+        let opcode: u16 = 0x35E0;
+        assert_eq!(OpCode::SkipIfRegisterEqualsValue(opcode), opcode.into());
+        let opcode: u16 = 0x45E0;
+        assert_eq!(OpCode::SkipIfRegisterNotEqualsValue(opcode), opcode.into());
+    }
+    #[test]
+    fn skip_register_should_parse() {
+        let opcode: u16 = 0x55E0;
+        assert_eq!(OpCode::SkipIfRegistersAreEqual(opcode), opcode.into());
+        // let opcode: u16 = 0x65E0;
+        // assert_eq!(OpCode::SkipIfRegistersAreNotEqual(opcode), opcode.into());
+    }
+    #[test]
+    fn load_should_parse() {
+        let opcode: u16 = 0x65E0;
+        assert_eq!(OpCode::Load(opcode), opcode.into());
+    }
+    #[test]
+    fn add_should_parse() {
+        let opcode: u16 = 0x75E0;
+        assert_eq!(OpCode::Add(opcode), opcode.into());
     }
 }
