@@ -60,6 +60,10 @@ impl From<u16> for OpCode {
             ['7', ..] => OpCode::Add(value),
             ['8', ..] => decode_8_opcodes(repr, value),
             ['9', ..] => OpCode::SkipIfRegistersAreNotEqual(value),
+            ['A', ..] => OpCode::LoadI(value),
+            ['B', ..] => OpCode::JumpV0(value),
+            ['C', ..] => OpCode::RandomAnd(value),
+            ['D', ..] => OpCode::DrawSprite(value),
             _ => OpCode::Invalid,
         }
     }
@@ -171,5 +175,25 @@ mod test {
         assert_eq!(OpCode::Shr(opcode), opcode.into());
         let opcode: u16 = 0x85EE;
         assert_eq!(OpCode::Shl(opcode), opcode.into());
+    }
+    #[test]
+    fn load_i_should_parse() {
+        let opcode: u16 = 0xA5E3;
+        assert_eq!(OpCode::LoadI(opcode), opcode.into());
+    }
+    #[test]
+    fn jump_v0_should_parse() {
+        let opcode: u16 = 0xB5E3;
+        assert_eq!(OpCode::JumpV0(opcode), opcode.into());
+    }
+    #[test]
+    fn rnd_should_parse() {
+        let opcode: u16 = 0xC5E3;
+        assert_eq!(OpCode::RandomAnd(opcode), opcode.into());
+    }
+    #[test]
+    fn draw_should_parse() {
+        let opcode: u16 = 0xD5E3;
+        assert_eq!(OpCode::DrawSprite(opcode), opcode.into());
     }
 }
