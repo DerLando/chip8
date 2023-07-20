@@ -24,10 +24,20 @@ impl Emulator {
         }
     }
 
+    /// Perform a single, atomic tick of the emulator.
+    /// This follows the basic cpu loop of:
+    /// - Load
+    /// - Decode
+    /// - Execute
     pub fn tick(&mut self) {
+        // Load
         let opcode = self.load_op();
+
+        // Decode
         let opcode: OpCode = opcode.into();
         let command = opcode.into();
+
+        // Execute
         self.execute(command);
     }
 
