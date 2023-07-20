@@ -57,6 +57,14 @@ impl From<OpCode> for Command {
                 register: value.nibble_1(),
                 value: value.back(),
             },
+            OpCode::SkipIfRegistersAreEqual(value) => Command::SkipIfRegisterEqual {
+                register_a: value.nibble_1(),
+                register_b: value.nibble_2(),
+            },
+            OpCode::SkipIfRegistersAreNotEqual(value) => Command::SkipIfRegisterNotEqual {
+                register_a: value.nibble_1(),
+                register_b: value.nibble_2(),
+            },
 
             _ => unreachable!(),
         }
@@ -68,6 +76,7 @@ trait OpCodeShift {
     type HalfOutput;
     fn skip_first_nibble(&self) -> Self::Output;
     fn nibble_1(&self) -> Self::HalfOutput;
+    fn nibble_2(&self) -> Self::HalfOutput;
     fn front(&self) -> Self::HalfOutput;
     fn back(&self) -> Self::HalfOutput;
 }
@@ -94,5 +103,9 @@ impl OpCodeShift for u16 {
         let result = *self << 8;
         (result >> 8) as u8
     }
-}
 
+    fn nibble_2(&self) -> Self::HalfOutput {
+        let result = *self << 8;
+        (result >> 12) as u8
+    }
+}

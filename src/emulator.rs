@@ -56,6 +56,14 @@ impl Emulator {
             Command::SkipIfValueNotEqual { register, value } => {
                 self.skip_if_value_neq(register, value)
             }
+            Command::SkipIfRegisterEqual {
+                register_a,
+                register_b,
+            } => self.skip_if_registers_eq(register_a, register_b),
+            Command::SkipIfRegisterNotEqual {
+                register_a,
+                register_b,
+            } => self.skip_if_registers_neq(register_a, register_b),
 
             _ => unreachable!(),
         }
@@ -85,6 +93,16 @@ impl Emulator {
             self.cpu.advance_pc();
         }
     }
+    fn skip_if_registers_eq(&mut self, register_a: u8, register_b: u8) {
+        if *self.cpu.register(register_a) == *self.cpu.register(register_b) {
+            self.cpu.advance_pc();
+        }
+    }
+    fn skip_if_registers_neq(&mut self, register_a: u8, register_b: u8) {
+        if *self.cpu.register(register_a) != *self.cpu.register(register_b) {
+            self.cpu.advance_pc();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -111,12 +129,26 @@ mod test {
         emulator.memory.store(ptr_start, 0x3012);
         emulator.cpu.v0 = 0x12;
 
+        // Value equals value stored in register 0
         assert_eq!(ptr_start, *emulator.cpu.pc());
         emulator.tick();
         assert_eq!(ptr_start + 4, *emulator.cpu.pc());
 
+        // Value not equals value stored in register 0
         emulator.memory.store(ptr_start + 4, 0x4005);
         emulator.tick();
         assert_eq!(ptr_start + 8, *emulator.cpu.pc());
+
+        // Values stored in registers 0 and 1 are equal
+        emulator.memory.store(ptr_start + 8, 0x5010);
+        emulator.cpu.v1 = 0x12;
+        emulator.tick();
+        assert_eq!(ptr_start + 12, *emulator.cpu.pc());
+
+        // Values stored in registers 0 and 1 are not equal
+        emulator.memory.store(ptr_start + 12, 0x9010);
+        emulator.cpu.v1 = 0x11;
+        emulator.tick();
+        assert_eq!(ptr_start + 16, *emulator.cpu.pc());
     }
 }
