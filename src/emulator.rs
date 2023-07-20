@@ -32,10 +32,8 @@ impl Emulator {
     }
 
     fn load_op(&mut self) -> u16 {
-        let pc = self.cpu.pc_mut();
-        let opcode = self.memory.load(*pc);
-        *pc += 2;
-
+        let opcode = self.memory.load(*self.cpu.pc());
+        self.cpu.advance_pc();
         opcode
     }
 
@@ -44,6 +42,11 @@ impl Emulator {
             Command::ClearScreen => self.clear_screen(),
             Command::ReturnFromSubroutine => self.return_from_subroutine(),
             Command::Jump { address } => self.jump(address),
+            Command::SkipIfValueEqual { register, value } => self.skip_if_value_eq(register, value),
+            Command::SkipIfValueNotEqual { register, value } => {
+                self.skip_if_value_neq(register, value)
+            }
+
             _ => unreachable!(),
         }
     }
@@ -60,6 +63,17 @@ impl Emulator {
 
     fn jump(&mut self, address: u16) {
         *self.cpu.pc_mut() = address;
+    }
+
+    fn skip_if_value_eq(&mut self, register: u8, value: u8) {
+        if *self.cpu.register(register) == value {
+            self.cpu.advance_pc();
+        }
+    }
+    fn skip_if_value_neq(&mut self, register: u8, value: u8) {
+        if *self.cpu.register(register) != value {
+            self.cpu.advance_pc();
+        }
     }
 }
 
@@ -78,5 +92,21 @@ mod test {
         emulator.tick();
         println!("{:4X}", emulator.cpu.pc());
         assert_eq!(0x0300, *emulator.cpu.pc());
+    }
+
+    #[test]
+    fn can_skip_instructions() {
+        let mut emulator = Emulator::new();
+        let ptr_start = CHIP8_START as u16;
+        emulator.memory.store(ptr_start, 0x3012);
+        emulator.cpu.v0 = 0x12;
+
+        assert_eq!(ptr_start, *emulator.cpu.pc());
+        emulator.tick();
+        assert_eq!(ptr_start + 4, *emulator.cpu.pc());
+
+        emulator.memory.store(ptr_start + 4, 0x4005);
+        emulator.tick();
+        assert_eq!(ptr_start + 8, *emulator.cpu.pc());
     }
 }
