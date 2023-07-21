@@ -69,6 +69,7 @@ impl Emulator {
             Command::LoadI { value } => self.load_i(value),
             Command::Add { register, value } => self.add(register, value),
             Command::AddRegisters { write, read } => self.add_registers(write, read),
+            Command::AddI { read } => self.add_i(read),
 
             _ => unreachable!(),
         }
@@ -131,6 +132,9 @@ impl Emulator {
             self.cpu.carry_off();
         }
     }
+    fn add_i(&mut self, register: u8) {
+        *self.cpu.i_mut() += *self.cpu.register(register) as u16;
+    }
 }
 
 #[cfg(test)]
@@ -186,14 +190,17 @@ mod test {
         let ptr = CHIP8_START as u16;
         emulator.memory.store(ptr, 0x6012);
 
+        // Load 0x12 into register 0
         assert_ne!(*emulator.cpu.register(0), 0x12);
         emulator.tick();
         assert_eq!(*emulator.cpu.register(0), 0x12);
 
+        // Copy the content of register 0 into register 5
         emulator.memory.store(ptr + 2, 0x8500);
         emulator.tick();
         assert_eq!(*emulator.cpu.register(5), 0x12);
 
+        // Load 0x0300 into register I
         emulator.memory.store(ptr + 4, 0xA300);
         emulator.tick();
         assert_eq!(*emulator.cpu.i(), 0x0300);
@@ -206,14 +213,21 @@ mod test {
         emulator.memory.store(ptr, 0x7112);
         *emulator.cpu.register_mut(1) = 0x05;
 
+        // Add 0x12 to whatever is stored in register 1
         emulator.tick();
         assert_eq!(0x05 + 0x12, *emulator.cpu.register(1));
 
+        // Store 0x03 in register 2 and add registers 1 and 2
         *emulator.cpu.register_mut(2) = 0x03;
         emulator.cpu.carry_on();
         emulator.memory.store(ptr + 2, 0x8124);
         emulator.tick();
         assert_eq!(0x05 + 0x12 + 0x03, *emulator.cpu.register(1));
         assert_eq!(0, *emulator.cpu.carry());
+
+        // Add whatever is stored in register 1 to register I
+        emulator.memory.store(ptr + 4, 0xF11E);
+        emulator.tick();
+        assert_eq!(0x05 + 0x12 + 0x03, *emulator.cpu.i());
     }
 }

@@ -84,6 +84,9 @@ impl From<OpCode> for Command {
                 write: value.nibble_1(),
                 read: value.nibble_2(),
             },
+            OpCode::AddI(value) => Command::AddI {
+                read: value.nibble_1(),
+            },
 
             _ => unreachable!(),
         }
