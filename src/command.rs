@@ -36,6 +36,7 @@ pub(crate) enum Command {
     WaitKeyPress {register: u8, key: u8 },
     DumpAll { until_register: u8 },
     LoadAll { until_register: u8 },
+    NoOp,
 }
 
 impl From<OpCode> for Command {
@@ -44,6 +45,9 @@ impl From<OpCode> for Command {
             OpCode::ClearScreen(_) => Command::ClearScreen,
             OpCode::Return(_) => Command::ReturnFromSubroutine,
             OpCode::Jump(value) => Command::Jump {
+                address: value.skip_first_nibble(),
+            },
+            OpCode::JumpV0(value) => Command::JumpOffset {
                 address: value.skip_first_nibble(),
             },
             OpCode::Call(value) => Command::Call {
@@ -87,6 +91,71 @@ impl From<OpCode> for Command {
             OpCode::AddI(value) => Command::AddI {
                 read: value.nibble_1(),
             },
+            OpCode::Or(value) => Command::Or {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
+            OpCode::And(value) => Command::And {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
+            OpCode::RandomAnd(value) => Command::RandomAnd {
+                register: value.nibble_1(),
+                value: value.back(),
+            },
+            OpCode::Xor(value) => Command::Xor {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
+            OpCode::Sub(value) => Command::Sub {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
+            OpCode::SubInverse(value) => Command::SubInverse {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
+            OpCode::Shr(value) => Command::Shr {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
+            OpCode::Shl(value) => Command::Shl {
+                write: value.nibble_1(),
+                read: value.nibble_2(),
+            },
+            OpCode::DrawSprite(value) => Command::DrawSprite {
+                register_x: value.nibble_1(),
+                register_y: value.nibble_2(),
+                value: value.nibble_3(),
+            },
+            OpCode::SkipIfKeyPressed(value) => Command::SkipIfKeyPressed {
+                key_register: value.nibble_1(),
+            },
+            OpCode::SkipIfKeyNotPressed(value) => Command::SkipIfKeyNotPressed {
+                key_register: value.nibble_1(),
+            },
+            OpCode::LoadDelay(value) => Command::LoadDelay {
+                register: value.nibble_1(),
+            },
+            OpCode::SetDelay(value) => Command::SetDelay {
+                register: value.nibble_1(),
+            },
+            OpCode::SetSound(value) => Command::SetSound {
+                register: value.nibble_1(),
+            },
+            OpCode::LoadSprite(value) => Command::LoadSpriteDigitIntoI {
+                read_register: value.nibble_1(),
+            },
+            OpCode::LoadBcd(value) => Command::LoadBcd {
+                read_register: value.nibble_1(),
+            },
+            OpCode::LoadAll(value) => Command::LoadAll {
+                until_register: value.nibble_1(),
+            },
+            OpCode::DumpAll(value) => Command::DumpAll {
+                until_register: value.nibble_1(),
+            },
+            OpCode::Invalid => Command::NoOp,
 
             _ => unreachable!(),
         }
@@ -99,6 +168,7 @@ trait OpCodeShift {
     fn skip_first_nibble(&self) -> Self::Output;
     fn nibble_1(&self) -> Self::HalfOutput;
     fn nibble_2(&self) -> Self::HalfOutput;
+    fn nibble_3(&self) -> Self::HalfOutput;
     fn front(&self) -> Self::HalfOutput;
     fn back(&self) -> Self::HalfOutput;
 }
@@ -128,6 +198,10 @@ impl OpCodeShift for u16 {
 
     fn nibble_2(&self) -> Self::HalfOutput {
         let result = *self << 8;
+        (result >> 12) as u8
+    }
+    fn nibble_3(&self) -> Self::HalfOutput {
+        let result = *self << 12;
         (result >> 12) as u8
     }
 }
