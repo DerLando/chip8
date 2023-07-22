@@ -70,8 +70,32 @@ impl Emulator {
             Command::Add { register, value } => self.add(register, value),
             Command::AddRegisters { write, read } => self.add_registers(write, read),
             Command::AddI { read } => self.add_i(read),
-
-            _ => unreachable!(),
+            Command::JumpOffset { address } => self.jump_offset(address),
+            Command::Call { address } => self.call_subroutine(address),
+            Command::LoadSpriteDigitIntoI { read_register } => todo!(),
+            Command::LoadBcd { read_register } => todo!(),
+            Command::Or { write, read } => self.or(write, read),
+            Command::And { write, read } => self.and(write, read),
+            Command::Xor { write, read } => self.xor(write, read),
+            Command::Sub { write, read } => todo!(),
+            Command::SubInverse { write, read } => todo!(),
+            Command::Shr { write, read } => todo!(),
+            Command::Shl { write, read } => todo!(),
+            Command::RandomAnd { register, value } => todo!(),
+            Command::DrawSprite {
+                register_x,
+                register_y,
+                value,
+            } => todo!(),
+            Command::SkipIfKeyPressed { key_register } => todo!(),
+            Command::SkipIfKeyNotPressed { key_register } => todo!(),
+            Command::LoadDelay { register } => todo!(),
+            Command::SetDelay { register } => todo!(),
+            Command::SetSound { register } => todo!(),
+            Command::WaitKeyPress { register, key } => todo!(),
+            Command::DumpAll { until_register } => todo!(),
+            Command::LoadAll { until_register } => todo!(),
+            Command::NoOp => todo!(),
         }
     }
 }
@@ -85,8 +109,17 @@ impl Emulator {
         *self.cpu.pc_mut() = self.stack.pop();
     }
 
+    fn call_subroutine(&mut self, address: u16) {
+        self.stack.push(*self.cpu.pc());
+        *self.cpu.pc_mut() = address;
+    }
+
     fn jump(&mut self, address: u16) {
         *self.cpu.pc_mut() = address;
+    }
+
+    fn jump_offset(&mut self, address: u16) {
+        self.jump(address + *self.cpu.register(0) as u16);
     }
 
     fn skip_if_value_eq(&mut self, register: u8, value: u8) {
@@ -134,6 +167,16 @@ impl Emulator {
     }
     fn add_i(&mut self, register: u8) {
         *self.cpu.i_mut() += *self.cpu.register(register) as u16;
+    }
+
+    fn or(&mut self, write: u8, read: u8) {
+        *self.cpu.register_mut(write) |= *self.cpu.register(read);
+    }
+    fn and(&mut self, write: u8, read: u8) {
+        *self.cpu.register_mut(write) &= *self.cpu.register(read);
+    }
+    fn xor(&mut self, write: u8, read: u8) {
+        *self.cpu.register_mut(write) ^= *self.cpu.register(read);
     }
 }
 
