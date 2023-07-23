@@ -69,8 +69,8 @@ impl Stack {
         self.ptr += 1;
     }
     pub fn pop(&mut self) -> u16 {
-        let value = self.buffer[self.ptr];
         self.ptr -= 1;
+        let value = self.buffer[self.ptr];
         value
     }
 }

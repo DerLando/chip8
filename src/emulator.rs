@@ -578,6 +578,21 @@ mod test {
     }
 
     #[test]
+    fn can_run_subroutines() {
+        let mut emulator = Emulator::new();
+        let subroutine_address = 0x0300;
+        emulator.memory.write_u16(CHIP8_START as u16, 0x2300);
+        emulator.memory.write_u16(subroutine_address, 0x00EE);
+
+        assert_eq!(CHIP8_START as u16, *emulator.cpu.pc());
+        emulator.tick();
+        assert_eq!(subroutine_address, *emulator.cpu.pc());
+        emulator.tick();
+        assert_eq!(CHIP8_START as u16 + 2, *emulator.cpu.pc());
+    }
+
+    #[test]
+    // #[ignore]
     fn passes_opcode_test_rom() {
         let rom = include_bytes!("../roms/test_opcode.ch8");
         let mut emulator = Emulator::new().with_rom(rom);
