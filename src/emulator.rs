@@ -178,6 +178,24 @@ impl Emulator {
     fn xor(&mut self, write: u8, read: u8) {
         *self.cpu.register_mut(write) ^= *self.cpu.register(read);
     }
+    fn sub(&mut self, write: u8, read: u8) {
+        let a = *self.cpu.register(write);
+        let b = *self.cpu.register(read);
+        *self.cpu.register_mut(write) = self.sub_with_borrow(a, b);
+    }
+    fn sub_inverse(&mut self, write: u8, read: u8) {
+        let a = *self.cpu.register(write);
+        let b = *self.cpu.register(read);
+        *self.cpu.register_mut(write) = self.sub_with_borrow(b, a);
+    }
+    fn sub_with_borrow(&mut self, a: u8, b: u8) -> u8 {
+        if a < b {
+            self.cpu.carry_on();
+            a.wrapping_sub(b)
+        } else {
+            a - b
+        }
+    }
 }
 
 #[cfg(test)]
