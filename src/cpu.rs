@@ -9,6 +9,8 @@ pub(crate) struct Cpu {
     pc: u16,
     registers: [u8; 16],
     i: u16,
+    delay: u8,
+    sound: u8,
 }
 
 impl Cpu {
@@ -55,5 +57,17 @@ impl Cpu {
     }
     pub(crate) fn carry_off(&mut self) {
         self.registers[15] = 0;
+    }
+    pub(crate) fn delay(&self) -> &u8 {
+        &self.delay
+    }
+    pub(crate) fn delay_mut(&mut self) -> &mut u8 {
+        &mut self.delay
+    }
+    pub(crate) fn sound(&self) -> &u8 {
+        &self.sound
+    }
+    pub(crate) fn sound_mut(&mut self) -> &mut u8 {
+        &mut self.sound
     }
 }

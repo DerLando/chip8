@@ -3,7 +3,7 @@ use crate::{
     config::{DumpLoadStyle, EmulatorConfiguration, JumpOffsetStyle, ShiftStyle},
     cpu::Cpu,
     display::DisplayBuffer,
-    io::keyboard::Keyboard,
+    io::{keyboard::Keyboard, timer::Timer},
     memory::{Memory, Stack, CHIP8_START},
     opcode::OpCode,
 };
@@ -16,6 +16,7 @@ pub struct Emulator {
     pub(crate) stack: Stack,
     pub(crate) display: DisplayBuffer,
     pub(crate) keyboard: Keyboard,
+    pub(crate) delay_timer: Timer,
     rng: oorandom::Rand32,
 }
 
@@ -30,6 +31,7 @@ impl Emulator {
             stack: Stack::new(),
             display: DisplayBuffer::new(),
             keyboard: Keyboard::new(),
+            delay_timer: Timer::new(),
             rng: oorandom::Rand32::new(42),
         }
     }
@@ -73,6 +75,8 @@ impl Emulator {
     /// - Decode
     /// - Execute
     pub fn tick(&mut self) {
+        self.update_delay_register();
+
         // Load
         let opcode = self.load_op();
 
@@ -82,6 +86,17 @@ impl Emulator {
 
         // Execute
         self.execute(command);
+    }
+
+    fn update_delay_register(&mut self) {
+        if *self.cpu.delay() > 0 {
+            let steps = self.delay_timer.tick();
+            if steps > *self.cpu.delay() {
+                *self.cpu.delay_mut() = 0;
+            } else {
+                *self.cpu.delay_mut() -= steps;
+            }
+        }
     }
 
     fn load_op(&mut self) -> u16 {
@@ -145,8 +160,8 @@ impl Emulator {
             Command::SkipIfKeyNotPressed { key_register } => {
                 self.skip_if_key_not_pressed(key_register)
             }
-            Command::LoadDelay { register } => todo!(),
-            Command::SetDelay { register } => todo!(),
+            Command::LoadDelay { register } => self.load_delay(register),
+            Command::SetDelay { register } => self.set_delay(register),
             Command::SetSound { register } => todo!(),
             Command::WaitKeyPress { register, key } => self.wait_key(register, key),
             Command::DumpAll { until_register } => match self.configuration.r_register {
@@ -396,6 +411,14 @@ impl Emulator {
             self.cpu.rollback_pc();
         }
     }
+
+    fn load_delay(&mut self, register: u8) {
+        *self.cpu.register_mut(register) = *self.cpu.delay();
+    }
+
+    fn set_delay(&mut self, register: u8) {
+        *self.cpu.delay_mut() = *self.cpu.register(register);
+    }
 }
 
 impl Emulator {
@@ -513,6 +536,20 @@ mod test {
         assert_eq!(2, emulator.memory.read_u8(*emulator.cpu.i() + 0));
         assert_eq!(3, emulator.memory.read_u8(*emulator.cpu.i() + 1));
         assert_eq!(4, emulator.memory.read_u8(*emulator.cpu.i() + 2));
+    }
+
+    #[test]
+    fn can_run_timers() {
+        let mut emulator = Emulator::new();
+        *emulator.cpu.register_mut(0) = 60;
+        emulator.memory.write_u16(CHIP8_START as u16, 0xF015);
+
+        emulator.tick();
+        assert_eq!(60, *emulator.cpu.delay());
+
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        emulator.tick();
+        assert_eq!(30, *emulator.cpu.delay());
     }
 
     #[test]
