@@ -5,7 +5,7 @@ pub(crate) enum Command {
     ClearScreen,
     ReturnFromSubroutine,
     Jump { address: u16 },
-    JumpOffset { address: u16 },
+    JumpOffset { address: u16, register: u8 },
     Call { address: u16 },
     SkipIfValueEqual { register: u8, value: u8 },
     SkipIfValueNotEqual { register: u8, value: u8 },
@@ -24,8 +24,8 @@ pub(crate) enum Command {
     Xor { write: u8, read: u8 },
     Sub { write: u8, read: u8 },
     SubInverse { write: u8, read: u8 },
-    Shr { write: u8, read: u8 },
-    Shl { write: u8, read: u8 },
+    ShiftRight { write: u8, read: u8 },
+    ShiftLeft { write: u8, read: u8 },
     RandomAnd { register: u8, value: u8 },
     DrawSprite { register_x: u8, register_y: u8, value: u8 },
     SkipIfKeyPressed { key_register: u8 },
@@ -49,6 +49,7 @@ impl From<OpCode> for Command {
             },
             OpCode::JumpV0(value) => Command::JumpOffset {
                 address: value.skip_first_nibble(),
+                register: value.nibble_1(),
             },
             OpCode::Call(value) => Command::Call {
                 address: value.skip_first_nibble(),
@@ -115,11 +116,11 @@ impl From<OpCode> for Command {
                 write: value.nibble_1(),
                 read: value.nibble_2(),
             },
-            OpCode::Shr(value) => Command::Shr {
+            OpCode::Shr(value) => Command::ShiftRight {
                 write: value.nibble_1(),
                 read: value.nibble_2(),
             },
-            OpCode::Shl(value) => Command::Shl {
+            OpCode::Shl(value) => Command::ShiftLeft {
                 write: value.nibble_1(),
                 read: value.nibble_2(),
             },

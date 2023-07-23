@@ -1,6 +1,7 @@
 use opcode::OpCode;
 
 mod command;
+mod config;
 mod cpu;
 mod decode;
 mod display;

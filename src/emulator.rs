@@ -1,5 +1,6 @@
 use crate::{
     command::Command,
+    config::{EmulatorConfiguration, JumpOffsetStyle},
     cpu::Cpu,
     display::DisplayBuffer,
     memory::{Memory, Stack, CHIP8_START},
@@ -8,6 +9,7 @@ use crate::{
 
 /// The main emulator
 pub struct Emulator {
+    pub configuration: EmulatorConfiguration,
     pub(crate) cpu: Cpu,
     pub(crate) memory: Memory,
     pub(crate) stack: Stack,
@@ -19,6 +21,7 @@ impl Emulator {
         let mut memory = Memory::new();
         Self::load_font_sprites(&mut memory);
         Self {
+            configuration: EmulatorConfiguration::default(),
             cpu: Cpu::new(),
             memory,
             stack: Stack::new(),
@@ -101,17 +104,20 @@ impl Emulator {
             Command::Add { register, value } => self.add(register, value),
             Command::AddRegisters { write, read } => self.add_registers(write, read),
             Command::AddI { read } => self.add_i(read),
-            Command::JumpOffset { address } => self.jump_offset(address),
+            Command::JumpOffset { address, register } => match self.configuration.jump {
+                JumpOffsetStyle::OffsetFromV0 => self.jump_offset(address),
+                JumpOffsetStyle::OffsetVariable => self.jump_offset_variable(address, register),
+            },
             Command::Call { address } => self.call_subroutine(address),
             Command::LoadSpriteDigitIntoI { read_register } => todo!(),
             Command::LoadBcd { read_register } => todo!(),
             Command::Or { write, read } => self.or(write, read),
             Command::And { write, read } => self.and(write, read),
             Command::Xor { write, read } => self.xor(write, read),
-            Command::Sub { write, read } => todo!(),
-            Command::SubInverse { write, read } => todo!(),
-            Command::Shr { write, read } => todo!(),
-            Command::Shl { write, read } => todo!(),
+            Command::Sub { write, read } => self.sub(write, read),
+            Command::SubInverse { write, read } => self.sub_inverse(write, read),
+            Command::ShiftRight { write, read } => self.shift_right(write, read),
+            Command::ShiftLeft { write, read } => self.shift_left(write, read),
             Command::RandomAnd { register, value } => todo!(),
             Command::DrawSprite {
                 register_x,
@@ -126,7 +132,7 @@ impl Emulator {
             Command::WaitKeyPress { register, key } => todo!(),
             Command::DumpAll { until_register } => todo!(),
             Command::LoadAll { until_register } => todo!(),
-            Command::NoOp => todo!(),
+            Command::NoOp => println!("Invalid instruction!"),
         }
     }
 }
@@ -151,6 +157,10 @@ impl Emulator {
 
     fn jump_offset(&mut self, address: u16) {
         self.jump(address + *self.cpu.register(0) as u16);
+    }
+
+    fn jump_offset_variable(&mut self, address: u16, register: u8) {
+        self.jump(address + *self.cpu.register(register) as u16);
     }
 
     fn skip_if_value_eq(&mut self, register: u8, value: u8) {
@@ -183,7 +193,7 @@ impl Emulator {
         *self.cpu.i_mut() = value;
     }
     fn add(&mut self, register: u8, value: u8) {
-        *self.cpu.register_mut(register) += value;
+        *self.cpu.register_mut(register) = self.cpu.register(register).wrapping_add(value);
     }
     fn add_registers(&mut self, write: u8, read: u8) {
         let a = self.cpu.register(write);
@@ -227,6 +237,40 @@ impl Emulator {
             a - b
         }
     }
+
+    /// Shifting is ambiguous, older versions copied over the value
+    /// from the read register to the write register, while newer
+    /// versions shift in-place the given register.
+    fn shift_right(&mut self, write: u8, read: u8) {
+        self.copy_register(write, read);
+        self.shift_right_in_place(write);
+    }
+
+    fn shift_right_in_place(&mut self, register: u8) {
+        let rightmost = *self.cpu.register(register) & 1;
+        *self.cpu.register_mut(register) >>= 1;
+        if rightmost == 1 {
+            self.cpu.carry_on();
+        } else {
+            self.cpu.carry_off();
+        }
+    }
+
+    fn shift_left(&mut self, write: u8, read: u8) {
+        self.copy_register(write, read);
+        self.shift_left_in_place(write);
+    }
+
+    fn shift_left_in_place(&mut self, register: u8) {
+        let leftmost = *self.cpu.register(register) & 0b1000_0000;
+        *self.cpu.register_mut(register) <<= 1;
+        if leftmost == 1 {
+            self.cpu.carry_on();
+        } else {
+            self.cpu.carry_off();
+        }
+    }
+
     fn draw(&mut self, register_x: u8, register_y: u8, value: u8) {
         let x = *self.cpu.register(register_x) % 64;
         let y = *self.cpu.register(register_y) % 32;
@@ -358,6 +402,19 @@ mod test {
         emulator.memory.store(ptr + 4, 0xF11E);
         emulator.tick();
         assert_eq!(0x05 + 0x12 + 0x03, *emulator.cpu.i());
+    }
+
+    #[test]
+    fn passes_opcode_test_rom() {
+        let rom = include_bytes!("../roms/test_opcode.ch8");
+        let mut emulator = Emulator::new().with_rom(rom);
+
+        for _ in 0..200 {
+            emulator.tick();
+        }
+
+        println!("{}", emulator.display);
+        assert!(false);
     }
 
     #[test]
