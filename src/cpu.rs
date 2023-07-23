@@ -31,6 +31,10 @@ impl Cpu {
         self.pc += 2;
     }
 
+    pub(crate) fn rollback_pc(&mut self) {
+        self.pc -= 2;
+    }
+
     pub(crate) fn register(&self, index: u8) -> &u8 {
         &self.registers[index as usize]
     }

@@ -3,6 +3,7 @@ use crate::{
     config::{DumpLoadStyle, EmulatorConfiguration, JumpOffsetStyle, ShiftStyle},
     cpu::Cpu,
     display::DisplayBuffer,
+    io::keyboard::Keyboard,
     memory::{Memory, Stack, CHIP8_START},
     opcode::OpCode,
 };
@@ -14,6 +15,7 @@ pub struct Emulator {
     pub(crate) memory: Memory,
     pub(crate) stack: Stack,
     pub(crate) display: DisplayBuffer,
+    pub(crate) keyboard: Keyboard,
     rng: oorandom::Rand32,
 }
 
@@ -27,6 +29,7 @@ impl Emulator {
             memory,
             stack: Stack::new(),
             display: DisplayBuffer::new(),
+            keyboard: Keyboard::new(),
             rng: oorandom::Rand32::new(42),
         }
     }
@@ -138,12 +141,14 @@ impl Emulator {
                 register_y,
                 value,
             } => self.draw(register_x, register_y, value),
-            Command::SkipIfKeyPressed { key_register } => todo!(),
-            Command::SkipIfKeyNotPressed { key_register } => todo!(),
+            Command::SkipIfKeyPressed { key_register } => self.skip_if_key_pressed(key_register),
+            Command::SkipIfKeyNotPressed { key_register } => {
+                self.skip_if_key_not_pressed(key_register)
+            }
             Command::LoadDelay { register } => todo!(),
             Command::SetDelay { register } => todo!(),
             Command::SetSound { register } => todo!(),
-            Command::WaitKeyPress { register, key } => todo!(),
+            Command::WaitKeyPress { register, key } => self.wait_key(register, key),
             Command::DumpAll { until_register } => match self.configuration.r_register {
                 DumpLoadStyle::AffectIRegister => self.dump_all_variable(until_register),
                 DumpLoadStyle::StaticIRegister => self.dump_all_static(until_register),
@@ -203,6 +208,19 @@ impl Emulator {
             self.cpu.advance_pc();
         }
     }
+
+    fn skip_if_key_pressed(&mut self, key_register: u8) {
+        if self.keyboard.is_pressed(*self.cpu.register(key_register)) {
+            self.cpu.advance_pc();
+        }
+    }
+
+    fn skip_if_key_not_pressed(&mut self, key_register: u8) {
+        if !self.keyboard.is_pressed(*self.cpu.register(key_register)) {
+            self.cpu.advance_pc();
+        }
+    }
+
     fn load(&mut self, register: u8, value: u8) {
         *self.cpu.register_mut(register) = value;
     }
@@ -369,6 +387,24 @@ impl Emulator {
         if did_turn_off_pixel {
             self.cpu.carry_on();
         }
+    }
+
+    fn wait_key(&mut self, key_register: u8, key: u8) {
+        if self.keyboard.is_pressed(key) {
+            *self.cpu.register_mut(key_register) = key;
+        } else {
+            self.cpu.rollback_pc();
+        }
+    }
+}
+
+impl Emulator {
+    pub fn press_key(&mut self, key: u8) {
+        self.keyboard.press(key);
+    }
+
+    pub fn release_key(&mut self, key: u8) {
+        self.keyboard.release(key);
     }
 }
 
