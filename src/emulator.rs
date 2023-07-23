@@ -2,7 +2,7 @@ use crate::{
     command::Command,
     cpu::Cpu,
     display::DisplayBuffer,
-    memory::{Memory, Stack},
+    memory::{Memory, Stack, CHIP8_START},
     opcode::OpCode,
 };
 
@@ -24,6 +24,11 @@ impl Emulator {
             stack: Stack::new(),
             display: DisplayBuffer::new(),
         }
+    }
+
+    pub fn with_rom(mut self, rom: &[u8]) -> Self {
+        self.memory.copy_from_slice(CHIP8_START as u16, rom);
+        self
     }
 
     fn load_font_sprites(memory: &mut Memory) {
@@ -112,7 +117,7 @@ impl Emulator {
                 register_x,
                 register_y,
                 value,
-            } => todo!(),
+            } => self.draw(register_x, register_y, value),
             Command::SkipIfKeyPressed { key_register } => todo!(),
             Command::SkipIfKeyNotPressed { key_register } => todo!(),
             Command::LoadDelay { register } => todo!(),
@@ -222,6 +227,43 @@ impl Emulator {
             a - b
         }
     }
+    fn draw(&mut self, register_x: u8, register_y: u8, value: u8) {
+        let x = *self.cpu.register(register_x) % 64;
+        let y = *self.cpu.register(register_y) % 32;
+        let height = value;
+        let start_address = *self.cpu.i();
+        let mut did_turn_off_pixel = false;
+
+        for (y_offset, address) in (start_address..start_address + height as u16).enumerate() {
+            let y_pos = y as usize + y_offset;
+            if y_pos > 32 {
+                break;
+            }
+            let y_pos = y_pos as u8;
+
+            // Bits are right-to-left, but we draw left-to right
+            // so we need to reverse the sprite bits after reading
+            let sprite_row = self.memory.read(address).reverse_bits();
+            for x_offset in 0..u8::BITS {
+                let x_pos = x as u32 + x_offset;
+                if x_pos > 64 {
+                    break;
+                }
+                let x_pos = x_pos as u8;
+
+                let should_flip = sprite_row >> x_offset & 1 == 1;
+                if !should_flip {
+                    continue;
+                }
+
+                did_turn_off_pixel |= self.display.flip_pixel(x_pos, y_pos);
+            }
+        }
+
+        if did_turn_off_pixel {
+            self.cpu.carry_on();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -316,5 +358,53 @@ mod test {
         emulator.memory.store(ptr + 4, 0xF11E);
         emulator.tick();
         assert_eq!(0x05 + 0x12 + 0x03, *emulator.cpu.i());
+    }
+
+    #[test]
+    fn can_draw_ibm_logo() {
+        let rom = include_bytes!("../roms/IBM_Logo.ch8");
+        let mut emulator = Emulator::new().with_rom(rom);
+
+        for _ in 0..21 {
+            emulator.tick();
+        }
+
+        println!("{}", emulator.display);
+        assert_eq!(
+            "◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◼◼◼◼◻◼◼◼◼◼◼◼◼◼◻◻◻◼◼◼◼◼◻◻◻◻◻◻◻◻◻◼◼◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◼◼◼◼◻◼◼◼◼◼◼◼◼◼◼◼◻◼◼◼◼◼◼◻◻◻◻◻◻◻◼◼◼◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◻◻◻◻◻◼◼◼◻◻◻◼◼◼◻◻◻◼◼◼◼◼◻◻◻◻◻◼◼◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◻◻◻◻◻◼◼◼◼◼◼◼◻◻◻◻◻◼◼◼◼◼◼◼◻◼◼◼◼◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◻◻◻◻◻◼◼◼◼◼◼◼◻◻◻◻◻◼◼◼◻◼◼◼◼◼◼◼◻◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◻◻◻◻◻◼◼◼◻◻◻◼◼◼◻◻◻◼◼◼◻◻◼◼◼◼◼◻◻◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◼◼◼◼◻◼◼◼◼◼◼◼◼◼◼◼◻◼◼◼◼◼◻◻◻◼◼◼◻◻◻◼◼◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◼◼◼◼◼◼◼◼◻◼◼◼◼◼◼◼◼◼◻◻◻◼◼◼◼◼◻◻◻◻◼◻◻◻◻◼◼◼◼◼◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻
+",
+            format!("{}", emulator.display)
+        );
     }
 }

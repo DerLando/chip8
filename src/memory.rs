@@ -19,6 +19,10 @@ impl Memory {
         )
     }
 
+    pub(crate) fn read(&self, ptr: u16) -> u8 {
+        self.buffer[ptr as usize]
+    }
+
     pub(crate) fn store(&mut self, ptr: u16, value: u16) {
         let ptr = ptr as usize;
         let values = value.to_be_bytes();
@@ -27,7 +31,7 @@ impl Memory {
     }
 
     pub(crate) fn copy_from_slice(&mut self, ptr: u16, values: &[u8]) {
-        self.buffer[(ptr as usize)..values.len()].copy_from_slice(values);
+        self.buffer[(ptr as usize)..(ptr as usize) + values.len()].copy_from_slice(values);
     }
 }
 
