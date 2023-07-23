@@ -1,6 +1,6 @@
 use crate::{
     command::Command,
-    config::{EmulatorConfiguration, JumpOffsetStyle},
+    config::{EmulatorConfiguration, JumpOffsetStyle, ShiftStyle},
     cpu::Cpu,
     display::DisplayBuffer,
     memory::{Memory, Stack, CHIP8_START},
@@ -116,8 +116,14 @@ impl Emulator {
             Command::Xor { write, read } => self.xor(write, read),
             Command::Sub { write, read } => self.sub(write, read),
             Command::SubInverse { write, read } => self.sub_inverse(write, read),
-            Command::ShiftRight { write, read } => self.shift_right(write, read),
-            Command::ShiftLeft { write, read } => self.shift_left(write, read),
+            Command::ShiftRight { write, read } => match self.configuration.shift {
+                ShiftStyle::CopyThenShift => self.shift_right(write, read),
+                ShiftStyle::ShiftInPlace => self.shift_right_in_place(write),
+            },
+            Command::ShiftLeft { write, read } => match self.configuration.shift {
+                ShiftStyle::CopyThenShift => self.shift_left(write, read),
+                ShiftStyle::ShiftInPlace => self.shift_left_in_place(write),
+            },
             Command::RandomAnd { register, value } => todo!(),
             Command::DrawSprite {
                 register_x,
@@ -409,7 +415,7 @@ mod test {
         let rom = include_bytes!("../roms/test_opcode.ch8");
         let mut emulator = Emulator::new().with_rom(rom);
 
-        for _ in 0..200 {
+        for _ in 0..400 {
             emulator.tick();
         }
 
