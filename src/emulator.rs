@@ -17,6 +17,7 @@ pub struct Emulator {
     pub(crate) display: DisplayBuffer,
     pub(crate) keyboard: Keyboard,
     pub(crate) delay_timer: Timer,
+    pub(crate) sound_timer: Timer,
     rng: oorandom::Rand32,
 }
 
@@ -32,6 +33,7 @@ impl Emulator {
             display: DisplayBuffer::new(),
             keyboard: Keyboard::new(),
             delay_timer: Timer::new(),
+            sound_timer: Timer::new(),
             rng: oorandom::Rand32::new(42),
         }
     }
@@ -76,6 +78,7 @@ impl Emulator {
     /// - Execute
     pub fn tick(&mut self) {
         self.update_delay_register();
+        self.update_sound_register();
 
         // Load
         let opcode = self.load_op();
@@ -95,6 +98,17 @@ impl Emulator {
                 *self.cpu.delay_mut() = 0;
             } else {
                 *self.cpu.delay_mut() -= steps;
+            }
+        }
+    }
+
+    fn update_sound_register(&mut self) {
+        if *self.cpu.sound() > 0 {
+            let steps = self.sound_timer.tick();
+            if steps > *self.cpu.sound() {
+                *self.cpu.sound_mut() = 0;
+            } else {
+                *self.cpu.sound_mut() -= steps;
             }
         }
     }
@@ -162,7 +176,7 @@ impl Emulator {
             }
             Command::LoadDelay { register } => self.load_delay(register),
             Command::SetDelay { register } => self.set_delay(register),
-            Command::SetSound { register } => todo!(),
+            Command::SetSound { register } => self.set_sound(register),
             Command::WaitKeyPress { register, key } => self.wait_key(register, key),
             Command::DumpAll { until_register } => match self.configuration.r_register {
                 DumpLoadStyle::AffectIRegister => self.dump_all_variable(until_register),
@@ -417,10 +431,17 @@ impl Emulator {
     }
 
     fn set_delay(&mut self, register: u8) {
+        self.delay_timer.tick();
         *self.cpu.delay_mut() = *self.cpu.register(register);
+    }
+
+    fn set_sound(&mut self, register: u8) {
+        self.sound_timer.tick();
+        *self.cpu.sound_mut() = *self.cpu.register(register);
     }
 }
 
+/// Peripherals implementations
 impl Emulator {
     pub fn press_key(&mut self, key: u8) {
         self.keyboard.press(key);
@@ -428,6 +449,10 @@ impl Emulator {
 
     pub fn release_key(&mut self, key: u8) {
         self.keyboard.release(key);
+    }
+
+    pub fn is_sound_on(&self) -> bool {
+        *self.cpu.sound() > 0
     }
 }
 
