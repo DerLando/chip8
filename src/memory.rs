@@ -25,6 +25,10 @@ impl Memory {
         self.buffer[ptr] = values[0];
         self.buffer[ptr + 1] = values[1];
     }
+
+    pub(crate) fn copy_from_slice(&mut self, ptr: u16, values: &[u8]) {
+        self.buffer[(ptr as usize)..values.len()].copy_from_slice(values);
+    }
 }
 
 #[cfg(test)]
