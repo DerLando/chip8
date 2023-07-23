@@ -10,7 +10,7 @@ impl Memory {
         Self { buffer: [0; 4096] }
     }
 
-    pub(crate) fn load(&self, ptr: u16) -> u16 {
+    pub(crate) fn read_u16(&self, ptr: u16) -> u16 {
         let ptr = ptr as usize;
         u16::from_be_bytes(
             self.buffer[ptr..=ptr + 1]
@@ -19,11 +19,15 @@ impl Memory {
         )
     }
 
-    pub(crate) fn read(&self, ptr: u16) -> u8 {
+    pub(crate) fn read_u8(&self, ptr: u16) -> u8 {
         self.buffer[ptr as usize]
     }
 
-    pub(crate) fn store(&mut self, ptr: u16, value: u16) {
+    pub(crate) fn write_u8(&mut self, ptr: u16, value: u8) {
+        self.buffer[ptr as usize] = value;
+    }
+
+    pub(crate) fn write_u16(&mut self, ptr: u16, value: u16) {
         let ptr = ptr as usize;
         let values = value.to_be_bytes();
         self.buffer[ptr] = values[0];
@@ -42,8 +46,8 @@ mod test {
     #[test]
     fn can_load_store() {
         let mut memory = Memory::new();
-        memory.store(2, 0x200);
-        assert_eq!(0x200, memory.load(2));
+        memory.write_u16(2, 0x200);
+        assert_eq!(0x200, memory.read_u16(2));
     }
 }
 

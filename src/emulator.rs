@@ -1,6 +1,6 @@
 use crate::{
     command::Command,
-    config::{EmulatorConfiguration, JumpOffsetStyle, ShiftStyle},
+    config::{DumpLoadStyle, EmulatorConfiguration, JumpOffsetStyle, ShiftStyle},
     cpu::Cpu,
     display::DisplayBuffer,
     memory::{Memory, Stack, CHIP8_START},
@@ -14,6 +14,7 @@ pub struct Emulator {
     pub(crate) memory: Memory,
     pub(crate) stack: Stack,
     pub(crate) display: DisplayBuffer,
+    rng: oorandom::Rand32,
 }
 
 impl Emulator {
@@ -26,6 +27,7 @@ impl Emulator {
             memory,
             stack: Stack::new(),
             display: DisplayBuffer::new(),
+            rng: oorandom::Rand32::new(42),
         }
     }
 
@@ -58,6 +60,10 @@ impl Emulator {
         );
     }
 
+    fn font_sprite_address(character: u8) -> u16 {
+        0x050 + character as u16 * 5
+    }
+
     /// Perform a single, atomic tick of the emulator.
     /// This follows the basic cpu loop of:
     /// - Load
@@ -76,7 +82,7 @@ impl Emulator {
     }
 
     fn load_op(&mut self) -> u16 {
-        let opcode = self.memory.load(*self.cpu.pc());
+        let opcode = self.memory.read_u16(*self.cpu.pc());
         self.cpu.advance_pc();
         opcode
     }
@@ -109,8 +115,10 @@ impl Emulator {
                 JumpOffsetStyle::OffsetVariable => self.jump_offset_variable(address, register),
             },
             Command::Call { address } => self.call_subroutine(address),
-            Command::LoadSpriteDigitIntoI { read_register } => todo!(),
-            Command::LoadBcd { read_register } => todo!(),
+            Command::LoadSpriteDigitIntoI { read_register } => {
+                self.load_sprite_key_into_i(read_register)
+            }
+            Command::LoadBcd { read_register } => self.load_bcd(read_register),
             Command::Or { write, read } => self.or(write, read),
             Command::And { write, read } => self.and(write, read),
             Command::Xor { write, read } => self.xor(write, read),
@@ -124,7 +132,7 @@ impl Emulator {
                 ShiftStyle::CopyThenShift => self.shift_left(write, read),
                 ShiftStyle::ShiftInPlace => self.shift_left_in_place(write),
             },
-            Command::RandomAnd { register, value } => todo!(),
+            Command::RandomAnd { register, value } => self.random_and(register, value),
             Command::DrawSprite {
                 register_x,
                 register_y,
@@ -136,8 +144,14 @@ impl Emulator {
             Command::SetDelay { register } => todo!(),
             Command::SetSound { register } => todo!(),
             Command::WaitKeyPress { register, key } => todo!(),
-            Command::DumpAll { until_register } => todo!(),
-            Command::LoadAll { until_register } => todo!(),
+            Command::DumpAll { until_register } => match self.configuration.r_register {
+                DumpLoadStyle::AffectIRegister => self.dump_all_variable(until_register),
+                DumpLoadStyle::StaticIRegister => self.dump_all_static(until_register),
+            },
+            Command::LoadAll { until_register } => match self.configuration.r_register {
+                DumpLoadStyle::AffectIRegister => self.load_all_variable(until_register),
+                DumpLoadStyle::StaticIRegister => self.load_all_static(until_register),
+            },
             Command::NoOp => println!("Invalid instruction!"),
         }
     }
@@ -198,6 +212,16 @@ impl Emulator {
     fn load_i(&mut self, value: u16) {
         *self.cpu.i_mut() = value;
     }
+    fn load_sprite_key_into_i(&mut self, key_register: u8) {
+        *self.cpu.i_mut() = Self::font_sprite_address(*self.cpu.register(key_register));
+    }
+    fn load_bcd(&mut self, read: u8) {
+        let value = *self.cpu.register(read);
+        let address = *self.cpu.i();
+        self.memory.write_u8(address + 0, value / 100);
+        self.memory.write_u8(address + 1, (value / 10) % 10);
+        self.memory.write_u8(address + 2, value % 10);
+    }
     fn add(&mut self, register: u8, value: u8) {
         *self.cpu.register_mut(register) = self.cpu.register(register).wrapping_add(value);
     }
@@ -221,6 +245,9 @@ impl Emulator {
     }
     fn and(&mut self, write: u8, read: u8) {
         *self.cpu.register_mut(write) &= *self.cpu.register(read);
+    }
+    fn random_and(&mut self, register: u8, value: u8) {
+        *self.cpu.register_mut(register) = value & (self.rng.rand_u32() >> 24) as u8;
     }
     fn xor(&mut self, write: u8, read: u8) {
         *self.cpu.register_mut(write) ^= *self.cpu.register(read);
@@ -277,6 +304,35 @@ impl Emulator {
         }
     }
 
+    fn load_all_static(&mut self, until_register: u8) {
+        let mut start_address = *self.cpu.i();
+        for i in 0..=until_register {
+            *self.cpu.register_mut(i) = self.memory.read_u8(start_address + i as u16);
+        }
+    }
+
+    fn load_all_variable(&mut self, until_register: u8) {
+        for i in 0..=until_register {
+            *self.cpu.i_mut() += i as u16;
+            *self.cpu.register_mut(i) = self.memory.read_u8(*self.cpu.i());
+        }
+    }
+
+    fn dump_all_static(&mut self, until_register: u8) {
+        let mut start_address = *self.cpu.i();
+        for i in 0..=until_register {
+            self.memory
+                .write_u8(start_address + i as u16, *self.cpu.register(i));
+        }
+    }
+
+    fn dump_all_variable(&mut self, until_register: u8) {
+        for i in 0..=until_register {
+            *self.cpu.i_mut() += i as u16;
+            self.memory.write_u8(*self.cpu.i(), *self.cpu.register(i));
+        }
+    }
+
     fn draw(&mut self, register_x: u8, register_y: u8, value: u8) {
         let x = *self.cpu.register(register_x) % 64;
         let y = *self.cpu.register(register_y) % 32;
@@ -293,7 +349,7 @@ impl Emulator {
 
             // Bits are right-to-left, but we draw left-to right
             // so we need to reverse the sprite bits after reading
-            let sprite_row = self.memory.read(address).reverse_bits();
+            let sprite_row = self.memory.read_u8(address).reverse_bits();
             for x_offset in 0..u8::BITS {
                 let x_pos = x as u32 + x_offset;
                 if x_pos > 64 {
@@ -325,7 +381,7 @@ mod test {
     #[test]
     fn can_jump() {
         let mut emulator = Emulator::new();
-        emulator.memory.store(CHIP8_START as u16, 0x1300);
+        emulator.memory.write_u16(CHIP8_START as u16, 0x1300);
 
         assert_eq!(CHIP8_START as u16, *emulator.cpu.pc());
         emulator.tick();
@@ -337,7 +393,7 @@ mod test {
     fn can_skip_instructions() {
         let mut emulator = Emulator::new();
         let ptr_start = CHIP8_START as u16;
-        emulator.memory.store(ptr_start, 0x3012);
+        emulator.memory.write_u16(ptr_start, 0x3012);
         *emulator.cpu.register_mut(0) = 0x12;
 
         // Value equals value stored in register 0
@@ -346,18 +402,18 @@ mod test {
         assert_eq!(ptr_start + 4, *emulator.cpu.pc());
 
         // Value not equals value stored in register 0
-        emulator.memory.store(ptr_start + 4, 0x4005);
+        emulator.memory.write_u16(ptr_start + 4, 0x4005);
         emulator.tick();
         assert_eq!(ptr_start + 8, *emulator.cpu.pc());
 
         // Values stored in registers 0 and 1 are equal
-        emulator.memory.store(ptr_start + 8, 0x5010);
+        emulator.memory.write_u16(ptr_start + 8, 0x5010);
         *emulator.cpu.register_mut(1) = 0x12;
         emulator.tick();
         assert_eq!(ptr_start + 12, *emulator.cpu.pc());
 
         // Values stored in registers 0 and 1 are not equal
-        emulator.memory.store(ptr_start + 12, 0x9010);
+        emulator.memory.write_u16(ptr_start + 12, 0x9010);
         *emulator.cpu.register_mut(0) = 0x11;
         emulator.tick();
         assert_eq!(ptr_start + 16, *emulator.cpu.pc());
@@ -367,7 +423,7 @@ mod test {
     fn can_load() {
         let mut emulator = Emulator::new();
         let ptr = CHIP8_START as u16;
-        emulator.memory.store(ptr, 0x6012);
+        emulator.memory.write_u16(ptr, 0x6012);
 
         // Load 0x12 into register 0
         assert_ne!(*emulator.cpu.register(0), 0x12);
@@ -375,12 +431,12 @@ mod test {
         assert_eq!(*emulator.cpu.register(0), 0x12);
 
         // Copy the content of register 0 into register 5
-        emulator.memory.store(ptr + 2, 0x8500);
+        emulator.memory.write_u16(ptr + 2, 0x8500);
         emulator.tick();
         assert_eq!(*emulator.cpu.register(5), 0x12);
 
         // Load 0x0300 into register I
-        emulator.memory.store(ptr + 4, 0xA300);
+        emulator.memory.write_u16(ptr + 4, 0xA300);
         emulator.tick();
         assert_eq!(*emulator.cpu.i(), 0x0300);
     }
@@ -389,7 +445,7 @@ mod test {
     fn can_add() {
         let mut emulator = Emulator::new();
         let ptr = CHIP8_START as u16;
-        emulator.memory.store(ptr, 0x7112);
+        emulator.memory.write_u16(ptr, 0x7112);
         *emulator.cpu.register_mut(1) = 0x05;
 
         // Add 0x12 to whatever is stored in register 1
@@ -399,15 +455,28 @@ mod test {
         // Store 0x03 in register 2 and add registers 1 and 2
         *emulator.cpu.register_mut(2) = 0x03;
         emulator.cpu.carry_on();
-        emulator.memory.store(ptr + 2, 0x8124);
+        emulator.memory.write_u16(ptr + 2, 0x8124);
         emulator.tick();
         assert_eq!(0x05 + 0x12 + 0x03, *emulator.cpu.register(1));
         assert_eq!(0, *emulator.cpu.carry());
 
         // Add whatever is stored in register 1 to register I
-        emulator.memory.store(ptr + 4, 0xF11E);
+        emulator.memory.write_u16(ptr + 4, 0xF11E);
         emulator.tick();
         assert_eq!(0x05 + 0x12 + 0x03, *emulator.cpu.i());
+    }
+
+    #[test]
+    fn can_bcd() {
+        let mut emulator = Emulator::new();
+        emulator.memory.write_u16(CHIP8_START as u16, 0xF033);
+        *emulator.cpu.register_mut(0) = 234;
+        *emulator.cpu.i_mut() = 0x0300;
+
+        emulator.tick();
+        assert_eq!(2, emulator.memory.read_u8(*emulator.cpu.i() + 0));
+        assert_eq!(3, emulator.memory.read_u8(*emulator.cpu.i() + 1));
+        assert_eq!(4, emulator.memory.read_u8(*emulator.cpu.i() + 2));
     }
 
     #[test]
