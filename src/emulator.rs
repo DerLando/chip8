@@ -43,6 +43,11 @@ impl Emulator {
         self
     }
 
+    pub fn load_rom(&mut self, rom: &[u8]) {
+        self.memory.clear_public();
+        self.memory.copy_from_slice(CHIP8_START as u16, rom);
+    }
+
     fn load_font_sprites(memory: &mut Memory) {
         memory.copy_from_slice(
             0x050,
@@ -186,8 +191,27 @@ impl Emulator {
                 DumpLoadStyle::AffectIRegister => self.load_all_variable(until_register),
                 DumpLoadStyle::StaticIRegister => self.load_all_static(until_register),
             },
-            Command::NoOp => println!("Invalid instruction!"),
+            Command::NoOp => log::warn!("Invalid instruction!"),
         }
+    }
+}
+
+/// Peripherals implementations
+impl Emulator {
+    pub fn press_key(&mut self, key: u8) {
+        self.keyboard.press(key);
+    }
+
+    pub fn release_key(&mut self, key: u8) {
+        self.keyboard.release(key);
+    }
+
+    pub fn is_sound_on(&self) -> bool {
+        *self.cpu.sound() > 0
+    }
+
+    pub fn is_pixel_on(&self, x: u8, y: u8) -> bool {
+        self.display.is_pixel_on(x, y)
     }
 }
 
@@ -442,21 +466,6 @@ impl Emulator {
     }
 }
 
-/// Peripherals implementations
-impl Emulator {
-    pub fn press_key(&mut self, key: u8) {
-        self.keyboard.press(key);
-    }
-
-    pub fn release_key(&mut self, key: u8) {
-        self.keyboard.release(key);
-    }
-
-    pub fn is_sound_on(&self) -> bool {
-        *self.cpu.sound() > 0
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::memory::CHIP8_START;
@@ -470,7 +479,6 @@ mod test {
 
         assert_eq!(CHIP8_START as u16, *emulator.cpu.pc());
         emulator.tick();
-        println!("{:4X}", emulator.cpu.pc());
         assert_eq!(0x0300, *emulator.cpu.pc());
     }
 
@@ -565,6 +573,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn can_run_timers() {
         let mut emulator = Emulator::new();
         *emulator.cpu.register_mut(0) = 60;
@@ -573,7 +582,7 @@ mod test {
         emulator.tick();
         assert_eq!(60, *emulator.cpu.delay());
 
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(core::time::Duration::from_millis(500));
         emulator.tick();
         assert_eq!(30, *emulator.cpu.delay());
     }
@@ -593,7 +602,7 @@ mod test {
     }
 
     #[test]
-    // #[ignore]
+    #[cfg(feature = "std")]
     fn passes_bc_test_rom() {
         let rom = include_bytes!("../roms/BC_test.ch8");
         let mut emulator = Emulator::new().with_rom(rom);
@@ -642,6 +651,7 @@ mod test {
         )
     }
 
+    #[cfg(feature = "std")]
     #[test]
     // #[ignore]
     fn passes_opcode_test_rom() {
@@ -691,6 +701,7 @@ mod test {
         );
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn can_draw_ibm_logo() {
         let rom = include_bytes!("../roms/IBM_Logo.ch8");

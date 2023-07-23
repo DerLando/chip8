@@ -1,3 +1,4 @@
+#[cfg(feature = "std")]
 use std::fmt::Display;
 
 const DISPLAY_WIDTH: usize = 64;
@@ -52,6 +53,7 @@ impl DisplayBuffer {
     }
 }
 
+#[cfg(feature = "std")]
 impl Display for DisplayBuffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for row in 0..DISPLAY_HEIGHT as u8 {

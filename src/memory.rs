@@ -1,13 +1,16 @@
 pub(crate) const CHIP8_START: usize = 0x200;
+pub(crate) const MEMORY_SIZE: usize = 4096;
 const ETI660_START: usize = 0x200;
 
 pub(crate) struct Memory {
-    buffer: [u8; 4096],
+    buffer: [u8; MEMORY_SIZE],
 }
 
 impl Memory {
     pub(crate) fn new() -> Self {
-        Self { buffer: [0; 4096] }
+        Self {
+            buffer: [0; MEMORY_SIZE],
+        }
     }
 
     pub(crate) fn read_u16(&self, ptr: u16) -> u16 {
@@ -17,6 +20,10 @@ impl Memory {
                 .try_into()
                 .expect("Buffer big enough"),
         )
+    }
+
+    pub(crate) fn clear_public(&mut self) {
+        self.buffer[CHIP8_START..MEMORY_SIZE].copy_from_slice(&[0; MEMORY_SIZE - CHIP8_START]);
     }
 
     pub(crate) fn read_u8(&self, ptr: u16) -> u8 {

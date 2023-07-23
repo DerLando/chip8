@@ -1,5 +1,7 @@
-use std::borrow::Borrow;
-
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec::Vec};
 /// All known OpCodes of the Chip8,
 /// as well as one variant for invalid opcodes
 #[derive(Debug, Eq, PartialEq)]
@@ -44,7 +46,7 @@ pub(crate) enum OpCode {
 impl From<u16> for OpCode {
     fn from(value: u16) -> Self {
         let repr: [char; 4] = raw_opcode_chars(value);
-        println!("{:?}", repr);
+        log::trace!("{:?}", repr);
         match repr {
             [' ', ' ', 'E', _] => match repr[3] {
                 '0' => OpCode::ClearScreen(value),
