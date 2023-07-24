@@ -48,6 +48,10 @@ impl Emulator {
         self.memory.copy_from_slice(CHIP8_START as u16, rom);
     }
 
+    pub fn load_test_rom(&mut self) {
+        self.load_rom(include_bytes!("../roms/test_opcode.ch8"))
+    }
+
     fn load_font_sprites(memory: &mut Memory) {
         memory.copy_from_slice(
             0x050,
