@@ -217,6 +217,37 @@ impl Emulator {
     pub fn is_pixel_on(&self, x: u8, y: u8) -> bool {
         self.display.is_pixel_on(x, y)
     }
+
+    pub fn dump_registers(&self) -> [u8; 16] {
+        [
+            *self.cpu.register(0),
+            *self.cpu.register(1),
+            *self.cpu.register(2),
+            *self.cpu.register(3),
+            *self.cpu.register(4),
+            *self.cpu.register(5),
+            *self.cpu.register(6),
+            *self.cpu.register(7),
+            *self.cpu.register(8),
+            *self.cpu.register(9),
+            *self.cpu.register(10),
+            *self.cpu.register(11),
+            *self.cpu.register(12),
+            *self.cpu.register(13),
+            *self.cpu.register(14),
+            *self.cpu.register(15),
+        ]
+    }
+
+    pub fn pc(&self) -> u16 {
+        *self.cpu.pc()
+    }
+    pub fn i(&self) -> u16 {
+        *self.cpu.i()
+    }
+    pub fn delay(&self) -> u8 {
+        *self.cpu.delay()
+    }
 }
 
 /// Interpreter
