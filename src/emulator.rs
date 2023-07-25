@@ -248,6 +248,36 @@ impl Emulator {
     pub fn delay(&self) -> u8 {
         *self.cpu.delay()
     }
+    pub fn dump_raw_memory_around_pc(&self) -> [u8; 11] {
+        [
+            self.memory.read_u8(self.pc() - 5),
+            self.memory.read_u8(self.pc() - 4),
+            self.memory.read_u8(self.pc() - 3),
+            self.memory.read_u8(self.pc() - 2),
+            self.memory.read_u8(self.pc() - 1),
+            self.memory.read_u8(self.pc() - 0),
+            self.memory.read_u8(self.pc() + 1),
+            self.memory.read_u8(self.pc() + 2),
+            self.memory.read_u8(self.pc() + 3),
+            self.memory.read_u8(self.pc() + 4),
+            self.memory.read_u8(self.pc() + 5),
+        ]
+    }
+    pub fn dump_double_memory_around_pc(&self) -> [u16; 11] {
+        [
+            self.memory.read_u16(self.pc() - 10),
+            self.memory.read_u16(self.pc() - 8),
+            self.memory.read_u16(self.pc() - 6),
+            self.memory.read_u16(self.pc() - 4),
+            self.memory.read_u16(self.pc() - 2),
+            self.memory.read_u16(self.pc() - 0),
+            self.memory.read_u16(self.pc() + 2),
+            self.memory.read_u16(self.pc() + 4),
+            self.memory.read_u16(self.pc() + 6),
+            self.memory.read_u16(self.pc() + 8),
+            self.memory.read_u16(self.pc() + 10),
+        ]
+    }
 }
 
 /// Interpreter
