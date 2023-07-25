@@ -44,7 +44,10 @@ impl Emulator {
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
+        self.cpu = Cpu::new();
         self.memory.clear_public();
+        self.stack = Stack::new();
+        self.display.clear();
         self.memory.copy_from_slice(CHIP8_START as u16, rom);
     }
 
