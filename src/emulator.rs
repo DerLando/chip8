@@ -19,6 +19,7 @@ pub struct Emulator {
     pub(crate) delay_timer: Timer,
     pub(crate) sound_timer: Timer,
     rng: oorandom::Rand32,
+    register_awaiting_input: Option<u8>,
 }
 
 impl Emulator {
@@ -35,6 +36,7 @@ impl Emulator {
             delay_timer: Timer::new(),
             sound_timer: Timer::new(),
             rng: oorandom::Rand32::new(42),
+            register_awaiting_input: None,
         }
     }
 
@@ -48,6 +50,7 @@ impl Emulator {
         self.memory.clear_public();
         self.stack = Stack::new();
         self.display.clear();
+        self.register_awaiting_input = None;
         self.memory.copy_from_slice(CHIP8_START as u16, rom);
     }
 
@@ -189,7 +192,7 @@ impl Emulator {
             Command::LoadDelay { register } => self.load_delay(register),
             Command::SetDelay { register } => self.set_delay(register),
             Command::SetSound { register } => self.set_sound(register),
-            Command::WaitKeyPress { register, key } => self.wait_key(register, key),
+            Command::WaitKeyPress { register } => self.wait_key(register),
             Command::DumpAll { until_register } => match self.configuration.r_register {
                 DumpLoadStyle::AffectIRegister => self.dump_all_variable(until_register),
                 DumpLoadStyle::StaticIRegister => self.dump_all_static(until_register),
@@ -207,6 +210,9 @@ impl Emulator {
 impl Emulator {
     pub fn press_key(&mut self, key: u8) {
         self.keyboard.press(key);
+        if self.register_awaiting_input.is_some() {
+            self.resume_from_wait_key(key);
+        }
     }
 
     pub fn release_key(&mut self, key: u8) {
@@ -511,11 +517,18 @@ impl Emulator {
         }
     }
 
-    fn wait_key(&mut self, key_register: u8, key: u8) {
-        if self.keyboard.is_pressed(key) {
-            *self.cpu.register_mut(key_register) = key;
+    fn wait_key(&mut self, key_register: u8) {
+        self.register_awaiting_input = Some(key_register);
+        self.cpu.rollback_pc();
+    }
+
+    fn resume_from_wait_key(&mut self, key_pressed: u8) {
+        if let Some(register) = self.register_awaiting_input {
+            *self.cpu.register_mut(register) = key_pressed;
+            self.register_awaiting_input = None;
+            self.cpu.advance_pc();
         } else {
-            self.cpu.rollback_pc();
+            log::warn!("Waited for key input, but did not set a register to receive said input...");
         }
     }
 

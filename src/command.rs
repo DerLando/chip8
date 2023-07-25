@@ -33,7 +33,7 @@ pub(crate) enum Command {
     LoadDelay {register: u8},
     SetDelay {register: u8},
     SetSound {register: u8},
-    WaitKeyPress {register: u8, key: u8 },
+    WaitKeyPress {register: u8 },
     DumpAll { until_register: u8 },
     LoadAll { until_register: u8 },
     NoOp,
@@ -135,6 +135,9 @@ impl From<OpCode> for Command {
             OpCode::SkipIfKeyNotPressed(value) => Command::SkipIfKeyNotPressed {
                 key_register: value.nibble_1(),
             },
+            OpCode::WaitKeyPress(value) => Command::WaitKeyPress {
+                register: value.nibble_1(),
+            },
             OpCode::LoadDelay(value) => Command::LoadDelay {
                 register: value.nibble_1(),
             },
@@ -157,8 +160,6 @@ impl From<OpCode> for Command {
                 until_register: value.nibble_1(),
             },
             OpCode::Invalid => Command::NoOp,
-
-            _ => unreachable!(),
         }
     }
 }
