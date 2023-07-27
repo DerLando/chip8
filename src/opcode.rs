@@ -6,28 +6,78 @@ use alloc::{format, string::String, vec::Vec};
 /// as well as one variant for invalid opcodes
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum OpCode {
+    /// 0x00E0
+    /// Clear the display to all black pixels
     ClearScreen(u16),
+    /// 0x00EE
+    /// Return from subroutine
     Return(u16),
+    /// 0x1NNN
+    /// Jump to memory location NNN
     Jump(u16),
+    /// 0x2NNN
+    /// Call the subroutine stored at NNN
     Call(u16),
+    /// 0x3XNN
+    /// Skip instruction if value on register X is equal to NN
     SkipIfRegisterEqualsValue(u16),
+    /// 0x4XNN
+    /// Skip instruction if value on register X is equal to NN
     SkipIfRegisterNotEqualsValue(u16),
+    /// 0x5XY0
+    /// Skip instruction if values of registers X and Y are equal
     SkipIfRegistersAreEqual(u16),
+    /// 0x6XNN
+    /// Set the register X to the value NN
     Load(u16),
+    /// 0x7XNN
+    /// Add NN to the value stored in register X and store the result in X
     Add(u16),
+    /// 0x8XY0
+    /// Load the value stored in register Y into register X
     LoadRegister(u16),
+    /// 0x8XY1
+    /// Bitwise Or the values in registers X and Y, store the result in X
     Or(u16),
+    /// 0x8XY2
+    /// Bitwise And the values in registers X and Y, store the result in X
     And(u16),
+    /// 0x8XY3
+    /// Bitwise Xor the values in registers X and Y, store the result in X
     Xor(u16),
+    /// 0x8XY4
+    /// Add the values of registers X and Y and store the result in X
     AddWithCarry(u16),
+    /// 0x8XY5
+    /// Subtract the values of registers X and Y (x - y) and store the result in X
     Sub(u16),
-    Shr(u16), // What is this?
+    /// 0x8XY6
+    /// Shift the value in register X right by one. This instruction is ambiguous!
+    /// On older interpreters, the value of register Y gets copied into X first before
+    /// doing the shift.
+    Shr(u16),
+    /// 0x8XY7
+    /// Subtract the values of registers X and Y (y - x) and store the result in X
     SubInverse(u16),
-    Shl(u16), // What is this?
+    /// 0x8XY8
+    /// Shift the value in register X left by one. This instruction is ambiguous!
+    /// On older interpreters, the value of register Y gets copied into X first before
+    /// doing the shift.
+    Shl(u16),
+    /// 0x9XY0
+    /// Skip instruction if values of registers X and Y are not equal
     SkipIfRegistersAreNotEqual(u16),
+    /// 0xANNN
+    /// Store NNN into register I
     LoadI(u16),
+    /// 0xBNNN | 0xBXNN
+    /// Jump to the memory address stored in I, offset by the value stored in v0|vx
     JumpV0(u16),
+    /// 0xCXNN
+    /// Binary And NN with a random u8 and store the result in register X
     RandomAnd(u16),
+    /// 0xDXYN
+    /// Draw an N pixel-rows high sprite at the pixel position values stored in registers X and Y
     DrawSprite(u16),
     SkipIfKeyPressed(u16),
     SkipIfKeyNotPressed(u16),
