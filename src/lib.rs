@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use opcode::OpCode;
 
 mod command;
 pub mod config;

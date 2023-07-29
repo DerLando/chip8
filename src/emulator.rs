@@ -4,7 +4,7 @@ use crate::{
     cpu::Cpu,
     display::DisplayBuffer,
     io::{keyboard::Keyboard, timer::Timer},
-    memory::{Memory, Stack, CHIP8_START},
+    memory::{Memory, Stack, CHIP8_START, MEMORY_SIZE},
     opcode::OpCode,
 };
 
@@ -94,6 +94,10 @@ impl Emulator {
     pub fn tick(&mut self) {
         self.update_delay_register();
         self.update_sound_register();
+
+        if *self.cpu.pc() >= MEMORY_SIZE as u16 - 2 {
+            *self.cpu.pc_mut() = CHIP8_START as u16;
+        }
 
         // Load
         let opcode = self.load_op();
@@ -678,6 +682,19 @@ mod test {
         assert_eq!(CHIP8_START as u16, *emulator.cpu.pc());
         emulator.tick();
         assert_eq!(subroutine_address, *emulator.cpu.pc());
+        emulator.tick();
+        assert_eq!(CHIP8_START as u16 + 2, *emulator.cpu.pc());
+    }
+
+    #[test]
+    fn buffers_cannot_overflow() {
+        let mut emulator = Emulator::new();
+        *emulator.cpu.pc_mut() = 0x0FFF;
+
+        emulator.tick();
+        assert_eq!(CHIP8_START as u16 + 2, *emulator.cpu.pc());
+        *emulator.cpu.pc_mut() = 0x0FFE;
+
         emulator.tick();
         assert_eq!(CHIP8_START as u16 + 2, *emulator.cpu.pc());
     }

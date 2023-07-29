@@ -26,26 +26,36 @@ impl DisplayBuffer {
         Self { buffer: [0; 256] }
     }
 
-    fn pos_to_index(x: u8, y: u8) -> usize {
-        y as usize * DISPLAY_WIDTH / 8 + x as usize / 8
+    fn pos_to_index(x: u8, y: u8) -> Option<usize> {
+        if y >= DISPLAY_HEIGHT as u8 || x >= DISPLAY_WIDTH as u8 {
+            None
+        } else {
+            Some(y as usize * DISPLAY_WIDTH / 8 + x as usize / 8)
+        }
     }
 
     /// Flip the value of the pixel at the given x and y positions.
     /// If the pixel is turned off in the process, this function will return true.
     pub(crate) fn flip_pixel(&mut self, x: u8, y: u8) -> bool {
-        let index = Self::pos_to_index(x, y);
-        let sub_index = (x % 8) as usize;
-        let pixel_byte = &mut self.buffer[index];
-        let is_turned_off = *pixel_byte & BIT_MASKS[sub_index] != 0;
-        *pixel_byte ^= BIT_MASKS[sub_index];
-        is_turned_off
+        if let Some(index) = Self::pos_to_index(x, y) {
+            let sub_index = (x % 8) as usize;
+            let pixel_byte = &mut self.buffer[index];
+            let is_turned_off = *pixel_byte & BIT_MASKS[sub_index] != 0;
+            *pixel_byte ^= BIT_MASKS[sub_index];
+            is_turned_off
+        } else {
+            false
+        }
     }
 
     pub fn is_pixel_on(&self, x: u8, y: u8) -> bool {
-        let index = Self::pos_to_index(x, y);
-        let sub_index = (x % 8) as usize;
-        let pixel_byte = self.buffer[index];
-        pixel_byte & BIT_MASKS[sub_index] != 0
+        if let Some(index) = Self::pos_to_index(x, y) {
+            let sub_index = (x % 8) as usize;
+            let pixel_byte = self.buffer[index];
+            pixel_byte & BIT_MASKS[sub_index] != 0
+        } else {
+            false
+        }
     }
 
     pub(crate) fn clear(&mut self) {
@@ -95,5 +105,11 @@ mod test {
             assert!(display.flip_pixel(x, 0));
             assert!(!display.is_pixel_on(x, 0));
         }
+    }
+
+    #[test]
+    fn cannot_access_oob() {
+        let mut display = DisplayBuffer::new();
+        display.flip_pixel(255, 255);
     }
 }
