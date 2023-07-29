@@ -159,7 +159,7 @@ impl From<OpCode> for Command {
             OpCode::DumpAll(value) => Command::DumpAll {
                 until_register: value.nibble_1(),
             },
-            OpCode::Invalid => Command::NoOp,
+            OpCode::Invalid(_) => Command::NoOp,
         }
     }
 }

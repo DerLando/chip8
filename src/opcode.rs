@@ -79,7 +79,11 @@ pub(crate) enum OpCode {
     /// 0xDXYN
     /// Draw an N pixel-rows high sprite at the pixel position values stored in registers X and Y
     DrawSprite(u16),
+    /// 0xEX9E
+    /// Skip the next instruction if the key stored in register X is pressed
     SkipIfKeyPressed(u16),
+    /// 0xEXA1
+    /// Skip the next instruction if the key stored in register X is not pressed
     SkipIfKeyNotPressed(u16),
     LoadDelay(u16),
     WaitKeyPress(u16),
@@ -90,7 +94,13 @@ pub(crate) enum OpCode {
     LoadBcd(u16),
     DumpAll(u16),
     LoadAll(u16),
-    Invalid,
+    Invalid(u16),
+}
+
+impl OpCode {
+    pub fn into_inner(self) -> u16 {
+        todo!()
+    }
 }
 
 impl From<u16> for OpCode {
@@ -101,7 +111,7 @@ impl From<u16> for OpCode {
             [' ', ' ', 'E', _] => match repr[3] {
                 '0' => OpCode::ClearScreen(value),
                 'E' => OpCode::Return(value),
-                _ => OpCode::Invalid,
+                _ => OpCode::Invalid(value),
             },
             ['1', ..] => OpCode::Jump(value),
             ['2', ..] => OpCode::Call(value),
@@ -119,7 +129,7 @@ impl From<u16> for OpCode {
             ['E', _, '9', 'E'] => OpCode::SkipIfKeyPressed(value),
             ['E', _, 'A', '1'] => OpCode::SkipIfKeyNotPressed(value),
             ['F', ..] => decode_f_opcodes(repr, value),
-            _ => OpCode::Invalid,
+            _ => OpCode::Invalid(value),
         }
     }
 }
@@ -144,7 +154,7 @@ fn decode_8_opcodes(repr: [char; 4], value: u16) -> OpCode {
         ['8', _, _, '6'] => OpCode::Shr(value),
         ['8', _, _, '7'] => OpCode::SubInverse(value),
         ['8', _, _, 'E'] => OpCode::Shl(value),
-        _ => OpCode::Invalid,
+        _ => OpCode::Invalid(value),
     }
 }
 
@@ -159,7 +169,7 @@ fn decode_f_opcodes(repr: [char; 4], value: u16) -> OpCode {
         ['F', _, '3', '3'] => OpCode::LoadBcd(value),
         ['F', _, '5', '5'] => OpCode::DumpAll(value),
         ['F', _, '6', '5'] => OpCode::LoadAll(value),
-        _ => OpCode::Invalid,
+        _ => OpCode::Invalid(value),
     }
 }
 
